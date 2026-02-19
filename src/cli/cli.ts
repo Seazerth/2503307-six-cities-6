@@ -21,7 +21,7 @@ export const runCLI = async (args: string[]): Promise<void> => {
 
   const showVersion = () => {
     const packageJSON = JSON.parse(
-      fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
+      fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf-8')
     );
 
     console.log(chalk.green(`Версия: ${packageJSON.version}`));

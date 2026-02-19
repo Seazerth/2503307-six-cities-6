@@ -1,10 +1,10 @@
 export type City =
-  | "Paris"
-  | "Cologne"
-  | "Brussels"
-  | "Amsterdam"
-  | "Hamburg"
-  | "Dusseldorf";
+  | 'Paris'
+  | 'Cologne'
+  | 'Brussels'
+  | 'Amsterdam'
+  | 'Hamburg'
+  | 'Dusseldorf';
 
 export type Offer = {
   title: string;
@@ -16,7 +16,7 @@ export type Offer = {
   isPremium: boolean;
   isFavorite: boolean;
   rating: number;
-  type: "apartment" | "house" | "room" | "hotel";
+  type: 'apartment' | 'house' | 'room' | 'hotel';
   rooms: number;
   guests: number;
   price: number;

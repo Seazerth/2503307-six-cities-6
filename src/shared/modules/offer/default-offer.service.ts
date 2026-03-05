@@ -8,6 +8,7 @@ import { CreateOfferDto } from './dto/create-offer.dto.js';
 import { UpdateOfferDto } from './dto/update-offer.dto.js';
 import { DEFAULT_OFFER_COUNT } from './offer.constant.js';
 import { CategoryEntity } from '../category/category.entity.js';
+import { Types } from 'mongoose';
 
 @injectable()
 export class DefaultOfferService implements OfferService {
@@ -32,7 +33,7 @@ export class DefaultOfferService implements OfferService {
       price: dto.price,
       image: dto.image,
       categories: foundCategories.map((cat) => cat._id),
-      userId: dto.userId
+      userId: new Types.ObjectId(dto.userId)
     };
 
     const result = await this.offerModel.create(offerData);

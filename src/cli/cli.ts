@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import chalk from 'chalk';
-import { createReadStream } from 'node:fs';
 import { OfferGenerator } from '../services/offer-generator.js';
 import { MockDataFetcher } from '../services/mock-data-fetcher.js';
 import { TSVWriter } from '../services/tsv-writer.js';
+import { ImportCommand } from './commands/import.command.js';
 
 export const runCLI = async (args: string[]): Promise<void> => {
 
@@ -12,10 +12,11 @@ export const runCLI = async (args: string[]): Promise<void> => {
     console.log(chalk.blue(`
 Доступные команды:
 
---help                              Показать список команд
---version                           Показать версию приложения
---import <file>                     Импортировать данные из TSV файла
---generate <n> <filepath> <url>     Сгенерировать тестовые данные
+--help                                        Показать список команд
+--version                                     Показать версию приложения
+--import <file> <dblogin> <dbpassword>        Импортировать данные из TSV файла
+<dbhost> <dbname> <salt>
+--generate <n> <filepath> <url>               Сгенерировать тестовые данные
     `));
   };
 
@@ -27,56 +28,21 @@ export const runCLI = async (args: string[]): Promise<void> => {
     console.log(chalk.green(`Версия: ${packageJSON.version}`));
   };
 
-  const importData = (filePath?: string): Promise<void> => new Promise((resolve, reject) => {
-    if (!filePath) {
-      console.error(chalk.red('Укажите путь к файлу.'));
-      reject(new Error('No file path provided'));
+  const importData = async (filePath?: string, dbLogin?: string, dbPassword?: string, dbHost?: string, dbName?: string, salt?: string): Promise<void> => {
+    if (!filePath || !dbLogin || !dbPassword || !dbHost || !dbName || !salt) {
+      console.error(chalk.red('Использование: --import <file> <dblogin> <dbpassword> <dbhost> <dbname> <salt>'));
       return;
     }
 
     try {
-      const resolvedPath = path.resolve(filePath);
-      const readStream = createReadStream(resolvedPath, {
-        encoding: 'utf-8',
-        highWaterMark: 64 * 1024, // 64KB chunks
-      });
-
-      let lineCount = 0;
-      let buffer = '';
-
-      readStream.on('data', (chunk: string) => {
-        buffer += chunk;
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        lines.forEach((line) => {
-          if (line.trim()) {
-            lineCount++;
-            if (lineCount % 1000 === 0) {
-              console.log(chalk.yellow(`Обработано ${lineCount} записей...`));
-            }
-          }
-        });
-      });
-
-      readStream.on('end', () => {
-        if (buffer.trim()) {
-          lineCount++;
-        }
-        console.log(chalk.green(`✓ Импортировано ${lineCount} записей`));
-        resolve();
-      });
-
-      readStream.on('error', (err: NodeJS.ErrnoException) => {
-        console.error(chalk.red(`Ошибка чтения файла: ${err.message}`));
-        reject(err);
-      });
+      const command = new ImportCommand();
+      await command.execute(filePath, dbLogin, dbPassword, dbHost, dbName, salt);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(chalk.red(`Ошибка: ${errorMessage}`));
-      reject(error);
+      console.error(chalk.red(`Ошибка импорта: ${errorMessage}`));
+      throw error;
     }
-  });
+  };
 
   const generateData = async (count?: string, filePath?: string, url?: string): Promise<void> => {
     try {
@@ -132,7 +98,7 @@ export const runCLI = async (args: string[]): Promise<void> => {
         showVersion();
         break;
       case '--import':
-        await importData(args[1]);
+        await importData(args[1], args[2], args[3], args[4], args[5], args[6]);
         break;
       case '--generate':
         await generateData(args[1], args[2], args[3]);

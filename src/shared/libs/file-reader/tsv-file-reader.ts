@@ -26,14 +26,14 @@ export class TSVFileReader extends EventEmitter {
 
       for (let i = 0; i < lines.length - 1; i++) {
         lineNumber++;
-        this.emit('line', lines[i], () => {});
+        this.emit('line', lines[i]);
       }
     });
 
     stream.on('end', () => {
       if (lineBuffer.length > 0) {
         lineNumber++;
-        this.emit('line', lineBuffer, () => {});
+        this.emit('line', lineBuffer);
       }
 
       this.emit('end', lineNumber);

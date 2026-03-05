@@ -24,14 +24,14 @@ export class DefaultOfferService implements OfferService {
       throw new Error('Some categories not exists');
     }
 
-    const offerData: any = {
+    const offerData = {
       title: dto.title,
       description: dto.description,
       postDate: dto.postDate,
       type: dto.type,
       price: dto.price,
       image: dto.image,
-      categories: foundCategories.map(cat => cat._id),
+      categories: foundCategories.map((cat) => cat._id),
       userId: dto.userId
     };
 
@@ -69,7 +69,7 @@ export class DefaultOfferService implements OfferService {
       if (foundCategories.length !== categoriesIds.length) {
         throw new Error('Some categories not exists');
       }
-      (updateData as any).categories = foundCategories.map(cat => cat._id);
+      (updateData as Record<string, unknown>).categories = foundCategories.map((cat) => cat._id);
     }
 
     return this.offerModel

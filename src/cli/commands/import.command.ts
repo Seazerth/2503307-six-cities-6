@@ -17,7 +17,7 @@ export class ImportCommand implements Command {
   private offerService: OfferService;
   private databaseClient: DatabaseClient;
   private logger: Logger;
-  private salt: string = '';
+  private salt = '';
 
   constructor() {
     this.logger = new ConsoleLogger();
@@ -55,7 +55,7 @@ export class ImportCommand implements Command {
 
     await this.offerService.create({
       ...offer,
-      categories: categories.map(cat => cat.toString()),
+      categories: categories.map((cat) => cat.toString()),
       userId: user._id.toString()
     });
   }

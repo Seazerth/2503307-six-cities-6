@@ -32,7 +32,7 @@ export class DefaultAuthService implements AuthService {
     return user;
   }
 
-  public async login(email: string, _password: string): Promise<DocumentType<UserEntity> | null> {
+  public async login(email: string, password: string): Promise<DocumentType<UserEntity> | null> {
     // В реальном приложении здесь будет проверка учетных данных
     // Для демонстрации просто ищем пользователя по email
     const user = await this.userService.findByEmail(email);

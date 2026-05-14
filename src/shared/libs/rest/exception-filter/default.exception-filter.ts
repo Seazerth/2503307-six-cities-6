@@ -12,11 +12,20 @@ export class DefaultExceptionFilter implements ExceptionFilter {
   public catch(error: Error, req: Request, res: Response, _next: NextFunction): void {
     this.logger.error(`[${req.method}] ${req.path} — Error: ${error.message}`, error);
 
+    if (this.isDuplicateKeyError(error)) {
+      res.status(StatusCodes.CONFLICT).json({
+        error: 'Conflict',
+        details: error.message,
+        statusCode: StatusCodes.CONFLICT
+      });
+      return;
+    }
+
     // Handle different types of errors
     if (this.isValidationError(error)) {
       res.status(StatusCodes.BAD_REQUEST).json({
-        error: 'Validation Error',
-        details: error.message,
+        error: error.message,
+        message: error.message,
         statusCode: StatusCodes.BAD_REQUEST
       });
       return;
@@ -43,7 +52,7 @@ export class DefaultExceptionFilter implements ExceptionFilter {
     // Default: Internal Server Error
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: 'Internal Server Error',
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',
+      message: error.message,
       statusCode: StatusCodes.INTERNAL_SERVER_ERROR
     });
   }
@@ -63,5 +72,9 @@ export class DefaultExceptionFilter implements ExceptionFilter {
     return error.message.includes('unauthorized') ||
            error.message.includes('access denied') ||
            error.message.includes('forbidden');
+  }
+
+  private isDuplicateKeyError(error: Error): boolean {
+    return error.name === 'MongoServerError' && error.message.includes('duplicate key');
   }
 }

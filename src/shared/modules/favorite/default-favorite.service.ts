@@ -23,7 +23,6 @@ export class DefaultFavoriteService implements FavoriteService {
     }
 
     await this.favoriteModel.create({ userId, offerId });
-    await this.offerModel.findByIdAndUpdate(offerId, { isFavorite: true });
     this.logger.info(`Offer ${offerId} added to favorites for user ${userId}`);
   }
 
@@ -35,12 +34,13 @@ export class DefaultFavoriteService implements FavoriteService {
       return;
     }
 
-    const otherFavorites = await this.favoriteModel.find({ offerId }).exec();
-    if (otherFavorites.length === 0) {
-      await this.offerModel.findByIdAndUpdate(offerId, { isFavorite: false });
-    }
-
     this.logger.info(`Offer ${offerId} removed from favorites for user ${userId}`);
+  }
+
+  public async removeByOfferId(offerId: string): Promise<number> {
+    const result = await this.favoriteModel.deleteMany({ offerId }).exec();
+    this.logger.info(`All favorites for offer ${offerId} deleted`);
+    return result.deletedCount;
   }
 
   public async getFavoriteOffers(userId: string): Promise<DocumentType<OfferEntity>[]> {
@@ -49,7 +49,8 @@ export class DefaultFavoriteService implements FavoriteService {
 
     return this.offerModel
       .find({ _id: { $in: offerIds } })
-      .populate(['authorId', 'categories'])
+      .sort({ postDate: -1 })
+      .populate(['authorId'])
       .exec();
   }
 

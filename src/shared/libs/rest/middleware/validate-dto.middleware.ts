@@ -12,7 +12,10 @@ export class ValidateDtoMiddleware extends BaseController implements Middleware 
 
   public async execute(req: Request, res: Response, next: NextFunction): Promise<void> {
     const dto = plainToInstance(this.DtoClass, req.body);
-    const errors = await validate(dto);
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: false,
+    });
 
     if (errors.length > 0) {
       const errorMessages = errors.map((error) => Object.values(error.constraints || {})).flat();

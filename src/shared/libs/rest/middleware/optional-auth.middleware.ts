@@ -8,15 +8,22 @@ export class OptionalAuthMiddleware implements Middleware {
   public async execute(req: Request, res: Response, next: NextFunction): Promise<void> {
     const authorizationHeader = req.headers.authorization;
 
-    if (authorizationHeader) {
-      const [type, token] = authorizationHeader.split(' ');
+    if (!authorizationHeader) {
+      next();
+      return;
+    }
 
-      if (type === 'Bearer' && token) {
-        const user = await this.authService.verify(token);
-        if (user) {
-          res.locals.user = user;
-        }
-      }
+    const [type, token] = authorizationHeader.split(' ');
+
+    if (type !== 'Bearer' || !token) {
+      next();
+      return;
+    }
+
+    const user = await this.authService.verify(token);
+
+    if (user) {
+      res.locals.user = user;
     }
 
     next();

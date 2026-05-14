@@ -9,7 +9,7 @@ export class TSVFileReader extends EventEmitter implements FileReader {
     super();
   }
 
-  public async read(): Promise<void> {
+  public async read(): Promise<number> {
     const readStream = createReadStream(this.filename, {
       highWaterMark: CHUNK_SIZE,
       encoding: 'utf-8',
@@ -33,6 +33,14 @@ export class TSVFileReader extends EventEmitter implements FileReader {
       }
     }
 
+    if (remainingData.trim().length > 0) {
+      importedRowCount++;
+      await new Promise((resolve) => {
+        this.emit('line', remainingData, resolve);
+      });
+    }
+
     this.emit('end', importedRowCount);
+    return importedRowCount;
   }
 }

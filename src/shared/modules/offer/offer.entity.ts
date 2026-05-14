@@ -1,10 +1,18 @@
 import { defaultClasses, getModelForClass, modelOptions, prop, Ref } from '@typegoose/typegoose';
 import { OfferType } from '../../types/index.js';
-import { CategoryEntity } from '../category/index.js';
 import { UserEntity } from '../user/index.js';
+import { OFFER_CITIES, OFFER_GOODS } from './offer.constant.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface OfferEntity extends defaultClasses.Base {}
+
+class Location {
+  @prop({ required: true })
+  public latitude!: number;
+
+  @prop({ required: true })
+  public longitude!: number;
+}
 
 @modelOptions({
   schemaOptions: {
@@ -22,7 +30,7 @@ export class OfferEntity extends defaultClasses.TimeStamps {
   @prop({ required: true })
   public postDate!: Date;
 
-  @prop({ required: true, enum: ['Paris', 'Cologne', 'Brussels', 'Amsterdam', 'Hamburg', 'Dusseldorf'] })
+  @prop({ required: true, enum: OFFER_CITIES })
   public city!: string;
 
   @prop({ required: true })
@@ -41,10 +49,16 @@ export class OfferEntity extends defaultClasses.TimeStamps {
   @prop({ default: false })
   public isPremium!: boolean;
 
-  @prop({ default: false })
-  public isFavorite!: boolean;
-
-  @prop({ required: true, min: 1, max: 5, default: 1 })
+  @prop({
+    required: true,
+    min: 1,
+    max: 5,
+    default: 1,
+    validate: {
+      validator: (value: number) => Number.isInteger(value * 10),
+      message: 'Rating must contain at most one digit after the decimal point'
+    }
+  })
   public rating!: number;
 
   @prop({
@@ -65,8 +79,12 @@ export class OfferEntity extends defaultClasses.TimeStamps {
 
   @prop({
     type: () => String,
-    enum: ['Breakfast', 'Air conditioning', 'Laptop friendly workspace', 'Baby seat', 'Washer', 'Towels', 'Fridge'],
-    default: []
+    enum: OFFER_GOODS,
+    required: true,
+    validate: {
+      validator: (values: string[]) => values.length >= 1,
+      message: 'At least one good is required'
+    }
   })
   public goods!: string[];
 
@@ -80,21 +98,11 @@ export class OfferEntity extends defaultClasses.TimeStamps {
   public commentCount!: number;
 
   @prop({
-    ref: CategoryEntity,
-    required: true,
-    default: [],
-    _id: false
-  })
-  public categories!: Ref<CategoryEntity>[];
-
-  @prop({
-    type: () => Object,
+    _id: false,
+    type: () => Location,
     required: true
   })
-  public location!: {
-    latitude: number;
-    longitude: number;
-  };
+  public location!: Location;
 }
 
 export const OfferModel = getModelForClass(OfferEntity);

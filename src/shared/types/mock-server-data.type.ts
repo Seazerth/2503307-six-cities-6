@@ -1,10 +1,14 @@
+import { OfferCity, OfferGood } from '../modules/offer/offer.constant.js';
+import { UserType } from '../modules/user/user.constant.js';
+
 export type MockServerData = {
-  categories: string[];
   titles: string[];
   descriptions: string[];
   offerImages: string[];
-  categoryImages: string[];
   users: string[];
   emails: string[];
   avatars: string[];
+  cities: OfferCity[];
+  goods: OfferGood[];
+  userTypes: UserType[];
 };

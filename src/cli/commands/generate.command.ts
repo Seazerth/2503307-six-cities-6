@@ -10,7 +10,8 @@ export class GenerateCommand implements Command {
 
   private async load(url: string) {
     try {
-      this.initialData = await got.get(url).json();
+      const response = await got.get(url).json<MockServerData | { api: MockServerData }>();
+      this.initialData = 'api' in response ? response.api : response;
     } catch {
       throw new Error(`Can't load data from ${url}`);
     }
@@ -20,8 +21,12 @@ export class GenerateCommand implements Command {
     const tsvOfferGenerator = new TSVOfferGenerator(this.initialData);
     const tsvFileWriter = new TSVFileWriter(filepath);
 
-    for (let i = 0; i < offerCount; i++) {
-      await tsvFileWriter.write(tsvOfferGenerator.generate());
+    try {
+      for (let i = 0; i < offerCount; i++) {
+        await tsvFileWriter.write(tsvOfferGenerator.generate());
+      }
+    } finally {
+      await tsvFileWriter.close();
     }
   }
 
@@ -32,6 +37,16 @@ export class GenerateCommand implements Command {
   public async execute(...parameters: string[]): Promise<void> {
     const [count, filepath, url] = parameters;
     const offerCount = Number.parseInt(count, 10);
+
+    if (!count || !filepath || !url) {
+      console.error('Usage: --generate <n> <filepath> <url>');
+      return;
+    }
+
+    if (!Number.isInteger(offerCount) || offerCount <= 0) {
+      console.error('The <n> argument for --generate must be a positive integer');
+      return;
+    }
 
     try {
       await this.load(url);

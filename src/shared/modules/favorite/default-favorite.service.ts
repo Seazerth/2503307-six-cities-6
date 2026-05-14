@@ -23,7 +23,6 @@ export class DefaultFavoriteService implements FavoriteService {
     }
 
     await this.favoriteModel.create({ userId, offerId });
-    await this.offerModel.findByIdAndUpdate(offerId, { isFavorite: true });
     this.logger.info(`Offer ${offerId} added to favorites for user ${userId}`);
   }
 
@@ -33,11 +32,6 @@ export class DefaultFavoriteService implements FavoriteService {
     if (result.deletedCount === 0) {
       this.logger.warn(`Offer ${offerId} was not in favorites for user ${userId}`);
       return;
-    }
-
-    const otherFavorites = await this.favoriteModel.find({ offerId }).exec();
-    if (otherFavorites.length === 0) {
-      await this.offerModel.findByIdAndUpdate(offerId, { isFavorite: false });
     }
 
     this.logger.info(`Offer ${offerId} removed from favorites for user ${userId}`);
@@ -55,6 +49,7 @@ export class DefaultFavoriteService implements FavoriteService {
 
     return this.offerModel
       .find({ _id: { $in: offerIds } })
+      .sort({ postDate: -1 })
       .populate(['authorId'])
       .exec();
   }

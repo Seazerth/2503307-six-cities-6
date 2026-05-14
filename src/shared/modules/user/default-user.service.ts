@@ -6,6 +6,7 @@ import { inject, injectable } from 'inversify';
 import { Component } from '../../types/index.js';
 import { Logger } from '../../libs/logger/index.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { DEFAULT_AVATAR_PATH } from './user.constant.js';
 
 @injectable()
 export class DefaultUserService implements UserService {
@@ -17,7 +18,7 @@ export class DefaultUserService implements UserService {
   public async create(dto: CreateUserDto, salt: string): Promise<DocumentType<UserEntity>> {
     const user = new UserEntity({
       ...dto,
-      avatarPath: dto.avatarPath ?? 'https://api.dicebear.com/9.x/initials/svg?seed=Six%20Cities&backgroundColor=3b82f6',
+      avatarPath: dto.avatarPath ?? DEFAULT_AVATAR_PATH,
     });
     user.setPassword(dto.password, salt);
 

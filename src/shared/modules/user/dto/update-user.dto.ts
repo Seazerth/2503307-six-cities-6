@@ -1,4 +1,7 @@
-import { IsEmail, IsIn, IsOptional, IsString, Length, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { USER_TYPES, UserType } from '../user.constant.js';
+
+const AVATAR_PATH_REGEXP = /^.+\.(jpg|jpeg|png)$/i;
 
 export class UpdateUserDto {
   @IsOptional()
@@ -7,17 +10,14 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString({ message: 'avatarPath must be a string' })
+  @Matches(AVATAR_PATH_REGEXP, { message: 'avatarPath must point to a .jpg or .png image' })
   public avatarPath?: string;
 
   @IsOptional()
-  @IsString({ message: 'firstname must be a string' })
-  @Length(1, 15, { message: 'firstname length must be between 1 and 15 characters' })
-  public firstname?: string;
-
-  @IsOptional()
-  @IsString({ message: 'lastname must be a string' })
-  @Length(1, 15, { message: 'lastname length must be between 1 and 15 characters' })
-  public lastname?: string;
+  @IsString({ message: 'name must be a string' })
+  @MinLength(1, { message: 'name must be at least 1 character' })
+  @MaxLength(15, { message: 'name must be at most 15 characters' })
+  public name?: string;
 
   @IsOptional()
   @IsString({ message: 'password must be a string' })
@@ -26,6 +26,6 @@ export class UpdateUserDto {
   public password?: string;
 
   @IsOptional()
-  @IsIn(['ordinary', 'pro'], { message: 'userType must be one of: ordinary, pro' })
-  public userType?: 'ordinary' | 'pro';
+  @IsIn(USER_TYPES, { message: 'userType must be one of: ordinary, pro' })
+  public userType?: UserType;
 }

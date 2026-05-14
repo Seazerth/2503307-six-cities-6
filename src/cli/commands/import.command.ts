@@ -8,24 +8,25 @@ import { DatabaseClient, MongoDatabaseClient } from '../../shared/libs/database-
 import { Logger } from '../../shared/libs/logger/index.js';
 import { ConsoleLogger } from '../../shared/libs/logger/console.logger.js';
 import { DefaultUserService, UserModel } from '../../shared/modules/user/index.js';
-import { DEFAULT_DB_PORT, DEFAULT_USER_PASSWORD } from './command.constant.js';
 import { Offer } from '../../shared/types/index.js';
 import { CreateOfferDto } from '../../shared/modules/offer/dto/create-offer.dto.js';
+import { DefaultFavoriteService, FavoriteModel, FavoriteService } from '../../shared/modules/favorite/index.js';
 
 export class ImportCommand implements Command {
   private userService: UserService;
   private offerService: OfferService;
+  private favoriteService: FavoriteService;
   private databaseClient: DatabaseClient;
   private logger: Logger;
   private salt: string;
 
   constructor() {
     this.onImportedLine = this.onImportedLine.bind(this);
-    this.onCompleteImport = this.onCompleteImport.bind(this);
 
     this.logger = new ConsoleLogger();
     this.offerService = new DefaultOfferService(this.logger, OfferModel);
     this.userService = new DefaultUserService(this.logger, UserModel);
+    this.favoriteService = new DefaultFavoriteService(this.logger, FavoriteModel, OfferModel);
     this.databaseClient = new MongoDatabaseClient(this.logger);
   }
 
@@ -35,39 +36,37 @@ export class ImportCommand implements Command {
     resolve();
   }
 
-  private onCompleteImport(count: number) {
-    console.info(`${count} rows imported.`);
-    this.databaseClient.disconnect();
-  }
-
   private async saveOffer(offer: Offer) {
     const user = await this.userService.findOrCreate({
-      ...offer.user,
-      password: DEFAULT_USER_PASSWORD,
-      userType: 'ordinary',
+      email: offer.user.email,
+      name: offer.user.name,
+      avatarPath: offer.user.avatarPath,
+      password: offer.user.password ?? 'import12',
+      userType: offer.user.userType,
     }, this.salt);
 
-    await this.offerService.create({
+    const createdOffer = await this.offerService.create({
       authorId: user.id,
       title: offer.title,
       description: offer.description,
-      city: 'Paris',
-      previewImage: offer.image,
-      images: [offer.image, offer.image, offer.image, offer.image, offer.image, offer.image],
-      isPremium: false,
-      rating: 1,
+      city: offer.city,
+      previewImage: offer.previewImage,
+      images: offer.images,
+      isPremium: offer.isPremium,
+      isFavorite: offer.isFavorite,
+      rating: offer.rating,
       postDate: offer.postDate,
       price: offer.price,
       type: offer.type,
-      rooms: 1,
-      guests: 1,
-      goods: ['Breakfast'],
-      location: {
-        latitude: 48.85661,
-        longitude: 2.351499
-      }
+      rooms: offer.rooms,
+      guests: offer.guests,
+      goods: offer.goods,
+      location: offer.location,
     } as CreateOfferDto & { authorId: string });
 
+    if (offer.isFavorite) {
+      await this.favoriteService.addToFavorites(user.id, createdOffer.id);
+    }
   }
 
   public getName(): string {
@@ -75,14 +74,27 @@ export class ImportCommand implements Command {
   }
 
   public async execute(filename: string): Promise<void> {
+    if (!filename) {
+      console.error('Usage: --import <filepath>');
+      return;
+    }
+
+    const requiredEnv = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'SALT'] as const;
+    const missingKeys = requiredEnv.filter((key) => !process.env[key]);
+
+    if (missingKeys.length > 0) {
+      console.error(`Missing required env variables for import: ${missingKeys.join(', ')}`);
+      return;
+    }
+
     const {
-      DB_USER = '',
-      DB_PASSWORD = '',
-      DB_HOST = '127.0.0.1',
-      DB_PORT = DEFAULT_DB_PORT,
-      DB_NAME = 'six-cities',
-      SALT = DEFAULT_USER_PASSWORD,
-    } = process.env;
+      DB_USER,
+      DB_PASSWORD,
+      DB_HOST,
+      DB_PORT,
+      DB_NAME,
+      SALT,
+    } = process.env as Record<(typeof requiredEnv)[number], string>;
 
     const uri = getMongoURI(DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME);
     this.salt = SALT;
@@ -92,13 +104,18 @@ export class ImportCommand implements Command {
     const fileReader = new TSVFileReader(filename.trim());
 
     fileReader.on('line', this.onImportedLine);
-    fileReader.on('end', this.onCompleteImport);
 
     try {
-      await fileReader.read();
+      const importedCount = await fileReader.read();
+      console.info(`${importedCount} rows imported.`);
+      await this.databaseClient.disconnect();
     } catch (error) {
       console.error(`Can't import data from file: ${filename}`);
       console.error(getErrorMessage(error));
+
+      if (this.databaseClient.isConnectedToDatabase()) {
+        await this.databaseClient.disconnect();
+      }
     }
   }
 }

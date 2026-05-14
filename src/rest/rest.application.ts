@@ -22,11 +22,11 @@ import { OptionalAuthMiddleware } from '../shared/libs/rest/middleware/optional-
 import { CreateCommentDto } from '../shared/modules/comment/dto/create-comment.dto.js';
 import { CreateOfferDto } from '../shared/modules/offer/dto/create-offer.dto.js';
 import { LoginDto } from '../shared/modules/auth/dto/login.dto.js';
-import { CommentService } from '../shared/modules/comment/comment-service.interface.js';
 import { AuthService } from '../shared/modules/auth/auth.service.interface.js';
 import { CreateUserDto } from '../shared/modules/user/dto/create-user.dto.js';
 import { UpdateOfferDto } from '../shared/modules/offer/dto/update-offer.dto.js';
 import { UpdateUserDto } from '../shared/modules/user/dto/update-user.dto.js';
+import { OfferService } from '../shared/modules/offer/offer-service.interface.js';
 
 @injectable()
 export class RestApplication {
@@ -46,7 +46,7 @@ export class RestApplication {
     @inject(Component.UserController) userController: UserController,
     @inject(Component.FavoriteController) favoriteController: FavoriteController,
     @inject(Component.OfferController) offerController: OfferController,
-    @inject(Component.CommentService) private readonly commentService: CommentService,
+    @inject(Component.OfferService) private readonly offerService: OfferService,
     @inject(Component.AuthService) private readonly authService: AuthService,
   ) {
     this.simpleController = new SimpleController(logger);
@@ -89,7 +89,13 @@ export class RestApplication {
     // Middleware instances
     const optionalAuthMiddleware = new OptionalAuthMiddleware(this.authService);
     const privateRouteMiddleware = new PrivateRouteMiddleware(this.authService, this.logger);
-    const validateOfferId = new ValidateObjectIdMiddleware('id');
+    const validateOfferId = new ValidateObjectIdMiddleware('offerId');
+    const offerExistsMiddleware = new DocumentExistsMiddleware(
+      this.offerService,
+      'offerId',
+      'Offer',
+      this.logger
+    );
 
     // Offers routes
     // GET /api/offers - list offers (optional auth for isFavorite)
@@ -99,11 +105,12 @@ export class RestApplication {
       this.offerController.getOffers
     );
 
-    // GET /api/offers/:id - get offer details (optional auth for isFavorite)
+    // GET /api/offers/:offerId - get offer details (optional auth for isFavorite)
     this.server.get(
-      '/api/offers/:id',
+      '/api/offers/:offerId',
       validateOfferId.execute.bind(validateOfferId),
       optionalAuthMiddleware.execute.bind(optionalAuthMiddleware),
+      offerExistsMiddleware.execute.bind(offerExistsMiddleware),
       this.offerController.getOfferById
     );
 
@@ -117,20 +124,22 @@ export class RestApplication {
       this.offerController.createOffer
     );
 
-    // PATCH /api/offers/:id - update offer (only authorized, own offer)
+    // PATCH /api/offers/:offerId - update offer (only authorized, own offer)
     this.server.patch(
-      '/api/offers/:id',
+      '/api/offers/:offerId',
       validateOfferId.execute.bind(validateOfferId),
       privateRouteMiddleware.execute.bind(privateRouteMiddleware),
+      offerExistsMiddleware.execute.bind(offerExistsMiddleware),
       validateUpdateOfferDto.execute.bind(validateUpdateOfferDto),
       this.offerController.updateOffer
     );
 
-    // DELETE /api/offers/:id - delete offer (only authorized, own offer)
+    // DELETE /api/offers/:offerId - delete offer (only authorized, own offer)
     this.server.delete(
-      '/api/offers/:id',
+      '/api/offers/:offerId',
       validateOfferId.execute.bind(validateOfferId),
       privateRouteMiddleware.execute.bind(privateRouteMiddleware),
+      offerExistsMiddleware.execute.bind(offerExistsMiddleware),
       this.offerController.deleteOffer
     );
 
@@ -141,7 +150,6 @@ export class RestApplication {
       this.offerController.getPremiumOffers
     );
 
-    this.server.get('/api/users', this.simpleController.getUsers);
     const validateCreateUserDto = new ValidateDtoMiddleware(CreateUserDto);
     this.server.post(
       '/api/users',
@@ -153,7 +161,6 @@ export class RestApplication {
 
     // Comments routes with middleware
     const validateOfferIdParam = new ValidateObjectIdMiddleware('offerId');
-    const validateCommentId = new ValidateObjectIdMiddleware('id');
     const validateCommentDto = new ValidateDtoMiddleware(CreateCommentDto);
 
     // Login/Logout routes
@@ -174,21 +181,11 @@ export class RestApplication {
     );
 
     // GET /api/offers/:offerId/comments - get comments for offer with ObjectId validation
-    this.server.get('/api/offers/:offerId/comments', validateOfferIdParam.execute.bind(validateOfferIdParam), this.commentController.index);
-
-    // Получение конкретного комментария (GET /api/comments/:id)
-    // Document existence is checked by middleware
-    const commentExistsMiddleware = new DocumentExistsMiddleware(
-      this.commentService,
-      'id',
-      'Comment',
-      this.logger
-    );
     this.server.get(
-      '/api/comments/:id',
-      validateCommentId.execute.bind(validateCommentId),
-      commentExistsMiddleware.execute.bind(commentExistsMiddleware),
-      this.commentController.show
+      '/api/offers/:offerId/comments',
+      validateOfferIdParam.execute.bind(validateOfferIdParam),
+      offerExistsMiddleware.execute.bind(offerExistsMiddleware),
+      this.commentController.index
     );
 
     // Avatar upload route (protected)
@@ -219,14 +216,18 @@ export class RestApplication {
     // POST /api/favorites/:offerId - add to favorites
     this.server.post(
       '/api/favorites/:offerId',
+      validateOfferIdParam.execute.bind(validateOfferIdParam),
       privateRouteMiddleware.execute.bind(privateRouteMiddleware),
+      offerExistsMiddleware.execute.bind(offerExistsMiddleware),
       this.favoriteController.addToFavorites
     );
 
     // DELETE /api/favorites/:offerId - remove from favorites
     this.server.delete(
       '/api/favorites/:offerId',
+      validateOfferIdParam.execute.bind(validateOfferIdParam),
       privateRouteMiddleware.execute.bind(privateRouteMiddleware),
+      offerExistsMiddleware.execute.bind(offerExistsMiddleware),
       this.favoriteController.removeFromFavorites
     );
 
@@ -240,7 +241,9 @@ export class RestApplication {
     // GET /api/favorites/:offerId/check - check if offer is favorite
     this.server.get(
       '/api/favorites/:offerId/check',
+      validateOfferIdParam.execute.bind(validateOfferIdParam),
       privateRouteMiddleware.execute.bind(privateRouteMiddleware),
+      offerExistsMiddleware.execute.bind(offerExistsMiddleware),
       this.favoriteController.checkIsFavorite
     );
   }

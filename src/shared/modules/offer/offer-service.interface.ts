@@ -15,6 +15,4 @@ export interface OfferService {
   findNew(count: number): Promise<DocumentType<OfferEntity>[]>;
   findDiscussed(count: number): Promise<DocumentType<OfferEntity>[]>;
   exists(documentId: string): Promise<boolean>;
-  addToFavorites(offerId: string, userId: string): Promise<void>;
-  removeFromFavorites(offerId: string, userId: string): Promise<void>;
 }

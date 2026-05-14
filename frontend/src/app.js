@@ -24,7 +24,7 @@ class SixCitiesApp {
   }
 
   getDefaultAvatar() {
-    return 'https://api.dicebear.com/9.x/initials/svg?seed=Six%20Cities&backgroundColor=3b82f6';
+    return api.resolveAssetUrl('/static/avatar.jpg');
   }
 
   getUserDisplayName() {
@@ -32,7 +32,7 @@ class SixCitiesApp {
       return '';
     }
 
-    return `${this.currentUser.firstname} ${this.currentUser.lastname}`.trim() || this.currentUser.email;
+    return this.currentUser.name || this.currentUser.email;
   }
 
   canDeleteOffer(offer) {
@@ -41,12 +41,17 @@ class SixCitiesApp {
     return Boolean(
       this.isAuthenticated &&
       this.currentUser &&
-      (
-        this.currentUser.userType === 'pro' ||
-        offerAuthorId === this.getEntityId(this.currentUser)
-      ) &&
+      offerAuthorId === this.getEntityId(this.currentUser) &&
       this.getEntityId(offer)
     );
+  }
+
+  canEditOffer(offer) {
+    return this.canDeleteOffer(offer);
+  }
+
+  getFallbackOfferImage() {
+    return api.resolveAssetUrl('/static/apartment-01.jpg');
   }
 
   getCityLocation(city) {
@@ -219,7 +224,7 @@ class SixCitiesApp {
           const offerId = this.getEntityId(offer);
           html += `
             <div class="offer-card" data-offer-card="${offerId}">
-              <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image" onerror="this.onerror=null;this.src='http://localhost:4000/static/apartment-01.jpg';">
+              <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image" onerror="this.onerror=null;this.src='${this.getFallbackOfferImage()}';">
               <div class="offer-info">
                 <h3>${offer.title}</h3>
                 <p class="price">$${offer.price}</p>
@@ -240,7 +245,7 @@ class SixCitiesApp {
         const favoriteClass = offer.isFavorite ? 'favorite' : '';
         html += `
           <div class="offer-card ${favoriteClass}" data-offer-card="${offerId}">
-            <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image" onerror="this.onerror=null;this.src='http://localhost:4000/static/apartment-01.jpg';">
+            <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image" onerror="this.onerror=null;this.src='${this.getFallbackOfferImage()}';">
             <div class="offer-info">
               <h3>${offer.title}</h3>
               <p class="price">$${offer.price}</p>
@@ -290,12 +295,8 @@ class SixCitiesApp {
         <h2>Register</h2>
         <form onsubmit="app.handleRegister(event)">
           <div class="form-group">
-            <label for="reg-firstname">First Name:</label>
-            <input type="text" id="reg-firstname" maxlength="15" required>
-          </div>
-          <div class="form-group">
-            <label for="reg-lastname">Last Name:</label>
-            <input type="text" id="reg-lastname" maxlength="15" required>
+            <label for="reg-name">Name:</label>
+            <input type="text" id="reg-name" maxlength="15" required>
           </div>
           <div class="form-group">
             <label for="reg-email">Email:</label>
@@ -426,12 +427,8 @@ class SixCitiesApp {
         </div>
         <form onsubmit="app.handleProfileUpdate(event)">
           <div class="form-group">
-            <label for="profile-firstname">First Name:</label>
-            <input type="text" id="profile-firstname" maxlength="15" value="${this.currentUser?.firstname || ''}" required>
-          </div>
-          <div class="form-group">
-            <label for="profile-lastname">Last Name:</label>
-            <input type="text" id="profile-lastname" maxlength="15" value="${this.currentUser?.lastname || ''}" required>
+            <label for="profile-name">Name:</label>
+            <input type="text" id="profile-name" maxlength="15" value="${this.currentUser?.name || ''}" required>
           </div>
           <div class="form-group">
             <label for="profile-email">Email:</label>
@@ -447,24 +444,8 @@ class SixCitiesApp {
           </div>
           <button type="submit" class="btn btn-primary">Save Profile</button>
         </form>
-        <div id="profile-extra" class="form-group"></div>
       </div>
     `;
-    this.renderProfileExtras();
-  }
-
-  async renderProfileExtras() {
-    const extra = document.getElementById('profile-extra');
-    if (!extra) {
-      return;
-    }
-
-    try {
-      const users = await api.getUsers();
-      extra.innerHTML = `<p><strong>Community users:</strong> ${Array.isArray(users) ? users.length : 0}</p>`;
-    } catch {
-      extra.innerHTML = '';
-    }
   }
 
   async renderOfferDetails(container, offerId) {
@@ -476,7 +457,7 @@ class SixCitiesApp {
       let html = `
         <div class="offer-details">
           <h2>${offer.title}</h2>
-          <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image-large" onerror="this.onerror=null;this.src='http://localhost:4000/static/apartment-01.jpg';">
+          <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image-large" onerror="this.onerror=null;this.src='${this.getFallbackOfferImage()}';">
           <div class="offer-info">
             <p><strong>Price:</strong> $${offer.price}</p>
             <p><strong>City:</strong> ${offer.city}</p>
@@ -496,7 +477,7 @@ class SixCitiesApp {
             <button onclick="app.toggleFavorite('${offerId}')" class="btn ${offer.isFavorite ? 'btn-danger' : 'btn-secondary'}">
               ${offer.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
             </button>
-            <button onclick="app.startEditOffer('${offerId}')" class="btn btn-secondary">Edit Offer</button>
+            ${this.canEditOffer(offer) ? `<button onclick="app.startEditOffer('${offerId}')" class="btn btn-secondary">Edit Offer</button>` : ''}
             ${this.canDeleteOffer(offer) ? `<button type="button" data-action="delete-offer" data-offer-id="${offerId}" class="btn btn-danger">Delete Offer</button>` : ''}
           </div>
         `;
@@ -506,7 +487,7 @@ class SixCitiesApp {
       if (comments && comments.length > 0) {
         html += '<div class="comments">';
         for (const comment of comments) {
-          const commentAuthor = comment.userId?.email || comment.author?.email || 'Anonymous';
+          const commentAuthor = comment.author?.name || comment.author?.email || 'Anonymous';
           html += `
             <div class="comment">
               <p><strong>${commentAuthor}</strong> - Rating: ${comment.rating}/5</p>
@@ -560,7 +541,7 @@ class SixCitiesApp {
         const offerId = this.getEntityId(offer);
         html += `
           <div class="offer-card favorite" data-offer-card="${offerId}">
-            <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image" onerror="this.onerror=null;this.src='http://localhost:4000/static/apartment-01.jpg';">
+            <img src="${offer.previewImage}" alt="${offer.title}" class="offer-image" onerror="this.onerror=null;this.src='${this.getFallbackOfferImage()}';">
             <div class="offer-info">
               <h3>${offer.title}</h3>
               <p class="price">$${offer.price}</p>
@@ -603,8 +584,7 @@ class SixCitiesApp {
     const avatarFile = document.getElementById('reg-avatar').files[0];
     const userData = {
       email,
-      firstname: document.getElementById('reg-firstname').value,
-      lastname: document.getElementById('reg-lastname').value,
+      name: document.getElementById('reg-name').value.trim(),
       password,
       userType: document.getElementById('reg-usertype').value,
     };
@@ -644,7 +624,6 @@ class SixCitiesApp {
       price: parseInt(document.getElementById('offer-price').value),
       goods: ['Breakfast'],
       rating: parseFloat(document.getElementById('offer-rating').value),
-      authorId: this.getEntityId(api.currentUser), // Get current user ID
       location: this.getCityLocation(city),
     };
 
@@ -659,24 +638,20 @@ class SixCitiesApp {
 
   async handleAddComment(event, offerId) {
     event.preventDefault();
-    const userId = this.getEntityId(this.currentUser || api.currentUser);
 
-    if (!userId) {
+    if (!this.isAuthenticated || !api.token) {
       alert('Please login first');
       return;
     }
 
     const commentData = {
       offerId,
-      userId,
-      postDate: new Date().toISOString(),
       text: document.getElementById('comment-text').value,
       rating: parseInt(document.getElementById('comment-rating').value),
     };
 
     try {
-      const createdComment = await api.createComment(commentData);
-      await api.getCommentById(createdComment.id);
+      await api.createComment(commentData);
       alert('Comment added successfully!');
       await this.renderOfferDetails(document.getElementById('content'), offerId);
     } catch (error) {
@@ -688,8 +663,7 @@ class SixCitiesApp {
     event.preventDefault();
 
     const profileData = {
-      firstname: document.getElementById('profile-firstname').value.trim(),
-      lastname: document.getElementById('profile-lastname').value.trim(),
+      name: document.getElementById('profile-name').value.trim(),
       email: document.getElementById('profile-email').value.trim(),
     };
     const password = document.getElementById('profile-password').value;

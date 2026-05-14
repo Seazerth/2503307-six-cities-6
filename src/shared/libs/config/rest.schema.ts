@@ -62,12 +62,12 @@ export const configRestSchema = convict<RestSchema>({
     doc: 'Directory for uploaded files',
     format: String,
     env: 'UPLOAD_DIRECTORY',
-    default: '/upload'
+    default: './upload'
   },
   JWT_SECRET: {
     doc: 'Secret for signing JWT tokens',
     format: String,
     env: 'JWT_SECRET',
-    default: 'secret-key'
+    default: null
   }
 });

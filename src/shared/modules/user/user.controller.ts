@@ -10,11 +10,10 @@ import { LoginDto } from '../auth/dto/login.dto.js';
 import asyncHandler from 'express-async-handler';
 import { Config, RestSchema } from '../../libs/config/index.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { DEFAULT_AVATAR_PATH, UserType } from './user.constant.js';
 
 @injectable()
 export class UserController extends BaseController {
-  private static readonly DEFAULT_AVATAR_PATH = 'https://api.dicebear.com/9.x/initials/svg?seed=Six%20Cities&backgroundColor=3b82f6';
-
   constructor(
     @inject(Component.Logger) protected readonly logger: Logger,
     @inject(Component.UserService) private readonly userService: UserService,
@@ -27,20 +26,18 @@ export class UserController extends BaseController {
   private serializeUser(user: {
     id: string;
     email: string;
-    firstname: string;
-    lastname: string;
+    name: string;
     avatarPath: string;
-    userType: 'ordinary' | 'pro';
+    userType: UserType;
   }) {
     const avatarPath = !user.avatarPath || user.avatarPath === 'default-avatar.png'
-      ? UserController.DEFAULT_AVATAR_PATH
+      ? DEFAULT_AVATAR_PATH
       : user.avatarPath;
 
     return {
       id: user.id,
       email: user.email,
-      firstname: user.firstname,
-      lastname: user.lastname,
+      name: user.name,
       avatarPath,
       userType: user.userType,
     };
@@ -65,7 +62,7 @@ export class UserController extends BaseController {
       return;
     }
 
-    const { email, password, firstname, lastname, avatarPath } = req.body;
+    const { email, password, name, avatarPath } = req.body;
 
     // Check if email already exists (5.8.4)
     const existingUser = await this.userService.findByEmail(email as string);
@@ -79,10 +76,9 @@ export class UserController extends BaseController {
     const createUserDto: CreateUserDto = {
       email: email as string,
       password: password as string,
-      firstname: firstname as string,
-      lastname: lastname as string,
-      avatarPath: (avatarPath as string) || UserController.DEFAULT_AVATAR_PATH,
-      userType: req.body.userType as 'ordinary' | 'pro',
+      name: name as string,
+      avatarPath: (avatarPath as string) || DEFAULT_AVATAR_PATH,
+      userType: req.body.userType as UserType,
     };
 
     const newUser = await this.userService.create(createUserDto, salt);
@@ -147,8 +143,7 @@ export class UserController extends BaseController {
 
     const payload: UpdateUserDto = {
       avatarPath: updateUserDto.avatarPath,
-      firstname: updateUserDto.firstname,
-      lastname: updateUserDto.lastname,
+      name: updateUserDto.name,
       email: updateUserDto.email,
       userType: updateUserDto.userType ?? user.userType,
     };

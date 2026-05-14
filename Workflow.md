@@ -2,7 +2,7 @@
 
 ## Требования
 
-- `Node.js` 18+
+- `Node.js` 24+
 - `npm` 8+
 - `Docker` и `docker compose` для локального MongoDB
 
@@ -24,6 +24,8 @@ REST API будет доступен на `http://localhost:4000`.
 cd frontend
 python3 -m http.server 3000 --directory public
 ```
+
+По умолчанию фронтенд ожидает API на `http://<host>:4000`. При запуске бэкенда и фронтенда на одном хосте дополнительная настройка не требуется.
 
 ## Переменные окружения
 
@@ -60,20 +62,29 @@ node cli.js --generate 20 ./mocks/offers.tsv http://localhost:3123/api
 node cli.js --import ./mocks/offers.tsv
 ```
 
+Формат одной строки TSV для импорта:
+
+```text
+title<TAB>description<TAB>postDate<TAB>city<TAB>previewImage<TAB>images(; separated)<TAB>isPremium<TAB>isFavorite<TAB>rating<TAB>type<TAB>rooms<TAB>guests<TAB>price<TAB>goods(; separated)<TAB>authorName<TAB>authorEmail<TAB>authorAvatarPath<TAB>authorPassword<TAB>authorType<TAB>latitude<TAB>longitude
+```
+
 ## Основные REST-ресурсы
 
 - `POST /api/users` — регистрация пользователя
 - `POST /api/auth/login` — логин
 - `POST /api/auth/logout` — logout авторизованного пользователя
 - `GET /api/users/me` — проверка состояния пользователя
+- `PATCH /api/users/me` — обновление текущего пользователя
+- `POST /api/users/avatar` — загрузка аватара текущего пользователя
 - `GET /api/offers` — список предложений
 - `POST /api/offers` — создание предложения
-- `GET /api/offers/:id` — карточка предложения
-- `PATCH /api/offers/:id` — редактирование своего предложения
-- `DELETE /api/offers/:id` — удаление своего предложения
+- `GET /api/offers/:offerId` — карточка предложения
+- `PATCH /api/offers/:offerId` — редактирование своего предложения
+- `DELETE /api/offers/:offerId` — удаление своего предложения
 - `GET /api/offers/:offerId/comments` — комментарии предложения
 - `POST /api/comments` — добавить комментарий
 - `GET /api/offers/premium/:city` — премиальные предложения города
 - `GET /api/favorites` — избранные предложения
 - `POST /api/favorites/:offerId` — добавить в избранное
 - `DELETE /api/favorites/:offerId` — удалить из избранного
+- `GET /api/favorites/:offerId/check` — проверить, находится ли предложение в избранном

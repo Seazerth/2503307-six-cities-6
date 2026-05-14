@@ -1,4 +1,4 @@
-import { defaultClasses, getModelForClass, modelOptions, prop, Ref } from '@typegoose/typegoose';
+import { defaultClasses, getModelForClass, index, modelOptions, prop, Ref } from '@typegoose/typegoose';
 import { OfferEntity } from '../offer/offer.entity.js';
 import { UserEntity } from '../user/user.entity.js';
 
@@ -10,6 +10,7 @@ export interface FavoriteEntity extends defaultClasses.Base {}
     collection: 'favorites'
   }
 })
+@index({ userId: 1, offerId: 1 }, { unique: true })
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class FavoriteEntity extends defaultClasses.TimeStamps {
   @prop({

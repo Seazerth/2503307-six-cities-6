@@ -14,10 +14,6 @@ export class RestConfig implements Config<RestSchema> {
   ) {
     const parsedOutput = config();
 
-    if (parsedOutput.error) {
-      throw new Error('Can\'t read .env file. Perhaps the file does not exists.');
-    }
-
     const requiredEnvKeys: (keyof RestSchema)[] = [
       'PORT',
       'SALT',
@@ -43,7 +39,11 @@ export class RestConfig implements Config<RestSchema> {
     configRestSchema.validate({ allowed: 'strict', output: this.logger.info });
 
     this.config = configRestSchema.getProperties();
-    this.logger.info('.env file found and successfully parsed!');
+    if (parsedOutput.parsed) {
+      this.logger.info('.env file found and successfully parsed!');
+    } else {
+      this.logger.info('Environment variables loaded from process environment');
+    }
   }
 
   public get<T extends keyof RestSchema>(key: T): RestSchema[T] {

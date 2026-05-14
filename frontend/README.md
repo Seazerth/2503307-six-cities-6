@@ -1,121 +1,125 @@
 # Six Cities Frontend
 
-Frontend for the Six Cities rental service application. This is a simple HTML/JavaScript application that communicates with the REST API backend.
+Frontend for the Six Cities rental service. The application is a lightweight HTML/JavaScript client for the REST API backend.
 
-## Features
+## Implemented Scenarios
 
-### Implemented Scenarios
+1. User registration
+2. User login
+3. Authentication check by token
+4. Offers list on the main page
+5. Offer creation
+6. Offer details page
+7. Comment creation
+8. Favorites management
+9. User logout
 
-1. **User Registration** - Users can create new accounts with email, password, and user type (ordinary/pro)
-2. **User Login** - Users can login with email and password to get authentication token
-3. **User Authentication Check** - The application checks user authentication status on load
-4. **View Offers List** - Display paginated list of rental offers on the home page
-5. **View Offer Details** - View detailed information about a specific offer including photos and comments
-6. **Add Offer** - Authenticated users can create new rental offers
-7. **Add Comment** - Authenticated users can add comments to offers
-8. **Favorites Management** - Users can add/remove offers to/from their favorites
-9. **User Logout** - Users can logout and clear their session
+## Run
 
-## Project Structure
+Requirements:
 
-```
-frontend/
-├── public/
-│   └── index.html          # Main HTML file
-├── src/
-│   ├── api.js              # API client module
-│   └── app.js              # Main application logic
-├── package.json            # Project dependencies
-└── README.md               # This file
-```
+- Node.js 24+
+- Running backend API
 
-## Running the Application
-
-### Prerequisites
-
-- Node.js installed
-- The backend API server running on `http://localhost:4000`
-
-### Installation
+Install and start:
 
 ```bash
 cd frontend
 npm install
-```
-
-### Start Development Server
-
-```bash
 npm start
 ```
 
-The application will be available at `http://localhost:3000`
+By default the app is available at `http://localhost:3000`.
 
-## API Resources
+The frontend expects the backend API at `http://<host>:4000`. If needed, define runtime config before loading `api.js`:
 
-The frontend communicates with the following API endpoints:
+```html
+<script>
+  window.__SIX_CITIES_CONFIG__ = {
+    apiOrigin: 'http://localhost:4000',
+    apiBaseUrl: 'http://localhost:4000/api'
+  };
+</script>
+```
 
-### Authentication
+## API Resources Used
 
-- `POST /api/auth/login` - User login (email, password)
-- `POST /api/auth/logout` - User logout
-- `GET /api/users/me` - Get current user info (requires auth token)
+Authentication:
 
-### Users
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/users/me`
 
-- `POST /api/users` - Register new user
+Users:
 
-### Offers
+- `POST /api/users`
+- `PATCH /api/users/me`
+- `POST /api/users/avatar`
 
-- `GET /api/offers?limit=60` - Get list of offers
-- `GET /api/offers/:offerId` - Get offer details
-- `POST /api/offers` - Create new offer (requires auth)
-- `PATCH /api/offers/:offerId` - Update offer (requires auth, owner only)
-- `DELETE /api/offers/:offerId` - Delete offer (requires auth, owner only)
-- `GET /api/offers/premium/:city` - Get premium offers for city
+Offers:
 
-### Comments
+- `GET /api/offers?limit=60`
+- `GET /api/offers/:offerId`
+- `POST /api/offers`
+- `PATCH /api/offers/:offerId`
+- `DELETE /api/offers/:offerId`
+- `GET /api/offers/premium/:city`
 
-- `GET /api/offers/:offerId/comments` - Get comments for offer
-- `POST /api/comments` - Create comment (requires auth)
+Comments:
 
-### Favorites
+- `GET /api/offers/:offerId/comments`
+- `POST /api/comments`
 
-- `GET /api/favorites` - Get user's favorite offers (requires auth)
-- `POST /api/favorites/:offerId` - Add offer to favorites (requires auth)
-- `DELETE /api/favorites/:offerId` - Remove offer from favorites (requires auth)
-- `GET /api/favorites/:offerId/check` - Check if offer is in favorites (requires auth)
+Favorites:
 
-## Data Structures
+- `GET /api/favorites`
+- `POST /api/favorites/:offerId`
+- `DELETE /api/favorites/:offerId`
+- `GET /api/favorites/:offerId/check`
 
-### Offer Object
+## Data Shapes
 
-```javascript
+User:
+
+```js
+{
+  id: string,
+  name: string,
+  email: string,
+  avatarPath: string,
+  userType: 'ordinary' | 'pro'
+}
+```
+
+Offer summary:
+
+```js
 {
   id: string,
   title: string,
-  description: string,
-  publishDate: string,
-  city: string,
+  postDate: string,
+  city: 'Paris' | 'Cologne' | 'Brussels' | 'Amsterdam' | 'Hamburg' | 'Dusseldorf',
   previewImage: string,
-  images: string[],
   isPremium: boolean,
   isFavorite: boolean,
   rating: number,
   type: 'apartment' | 'house' | 'room' | 'hotel',
+  price: number,
+  commentCount: number
+}
+```
+
+Offer details:
+
+```js
+{
+  ...offerSummary,
+  description: string,
+  images: string[],
   rooms: number,
   guests: number,
-  price: number,
-  amenities: string[],
-  author: {
-    id: string,
-    email: string,
-    firstname: string,
-    lastname: string,
-    userType: 'ordinary' | 'pro',
-    avatarPath?: string
-  },
-  commentCount: number,
+  goods: string[],
+  author: User,
   location: {
     latitude: number,
     longitude: number
@@ -123,87 +127,15 @@ The frontend communicates with the following API endpoints:
 }
 ```
 
-### User Object
+Comment:
 
-```javascript
-{
-  id: string,
-  email: string,
-  firstname: string,
-  lastname: string,
-  userType: 'ordinary' | 'pro',
-  avatarPath?: string
-}
-```
-
-### Comment Object
-
-```javascript
+```js
 {
   id: string,
   text: string,
-  publishDate: string,
+  postDate: string,
   rating: number,
-  author: {
-    id: string,
-    email: string,
-    firstname: string,
-    lastname: string,
-    userType: 'ordinary' | 'pro',
-    avatarPath?: string
-  }
+  offerId: string,
+  author: User
 }
 ```
-
-## Authentication
-
-The application uses JWT token-based authentication:
-
-1. User logs in with email and password
-2. Backend returns a JWT token
-3. Token is stored in localStorage
-4. Token is sent in Authorization header for protected requests: `Authorization: Bearer <token>`
-
-## Development Notes
-
-- The API client is in `src/api.js` and handles all HTTP requests
-- Main application logic is in `src/app.js` with page rendering functions
-- HTML/CSS is in `public/index.html`
-- The application uses ES6 modules (import/export)
-- CORS is handled by the backend which accepts requests from localhost:3000
-
-## Troubleshooting
-
-### "Cannot connect to API"
-
-Make sure:
-- Backend API is running on `http://localhost:4000`
-- CORS middleware is enabled on the backend
-- Frontend is running on `http://localhost:3000`
-
-### "Authentication failed"
-
-Check:
-- User credentials are correct
-- Backend user registration is working
-- JWT_SECRET is configured on the backend
-
-### Token expires
-
-- The application will automatically redirect to login if token is invalid
-- Delete localStorage `authToken` to manually clear cached token
-
-## Browser Support
-
-- Modern browsers with ES6 module support
-- Chrome, Firefox, Safari, Edge (recent versions)
-
-## Future Enhancements
-
-- Add more detailed error handling
-- Implement real-time notifications
-- Add photo upload for offers and avatars
-- Implement advanced filtering and search
-- Add map view for offers
-- Implement offer editing functionality
-- Add user profile management

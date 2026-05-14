@@ -10,6 +10,8 @@ import { UserService } from '../user/user-service.interface.js';
 
 @injectable()
 export class DefaultAuthService implements AuthService {
+  private readonly revokedTokens = new Set<string>();
+
   constructor(
     @inject(Component.Logger) private readonly logger: Logger,
     @inject(Component.UserService) private readonly userService: UserService,
@@ -33,6 +35,10 @@ export class DefaultAuthService implements AuthService {
 
   public async verify(token: string): Promise<DocumentType<UserEntity> | null> {
     try {
+      if (this.revokedTokens.has(token)) {
+        return null;
+      }
+
       const secret = new TextEncoder().encode(this.config.get('JWT_SECRET'));
       const { payload } = await jose.jwtVerify(token, secret);
       const user = await this.userService.findByEmail(payload.email as string);
@@ -57,7 +63,8 @@ export class DefaultAuthService implements AuthService {
     return user;
   }
 
-  public async logout(_token: string): Promise<void> {
+  public async logout(token: string): Promise<void> {
+    this.revokedTokens.add(token);
     this.logger.info('User logged out');
   }
 

@@ -7,6 +7,7 @@ import { CreateCommentDto } from './dto/create-comment.dto.js';
 import { UpdateCommentDto } from './dto/update-comment.dto.js';
 import { Logger } from '../../libs/logger/index.js';
 import { OfferEntity } from '../offer/offer.entity.js';
+import { COMMENT_LIST_LIMIT } from '../offer/offer.constant.js';
 
 @injectable()
 export class DefaultCommentService implements CommentService {
@@ -34,8 +35,8 @@ export class DefaultCommentService implements CommentService {
   public async findByOfferId(offerId: string): Promise<DocumentType<CommentEntity>[]> {
     return this.commentModel
       .find({offerId})
-      .sort({ createdAt: -1 })
-      .limit(50)
+      .sort({ postDate: -1 })
+      .limit(COMMENT_LIST_LIMIT)
       .populate('userId')
       .exec();
   }

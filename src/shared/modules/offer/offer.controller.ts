@@ -9,9 +9,10 @@ import { FavoriteService } from '../favorite/favorite-service.interface.js';
 import { OfferEntity } from './offer.entity.js';
 import { CreateOfferDto } from './dto/create-offer.dto.js';
 import { UpdateOfferDto } from './dto/update-offer.dto.js';
-import { DEFAULT_OFFER_COUNT } from './offer.constant.js';
+import { DEFAULT_OFFER_COUNT, OFFER_CITIES } from './offer.constant.js';
 import asyncHandler from 'express-async-handler';
 import { CommentService } from '../comment/comment-service.interface.js';
+import { DEFAULT_AVATAR_PATH } from '../user/user.constant.js';
 
 @injectable()
 export class OfferController extends BaseController {
@@ -32,14 +33,13 @@ export class OfferController extends BaseController {
     const source = user as Record<string, unknown>;
     const rawId = source.id ?? source._id ?? '';
     const avatarPath = !source.avatarPath || source.avatarPath === 'default-avatar.png'
-      ? 'https://api.dicebear.com/9.x/initials/svg?seed=Six%20Cities&backgroundColor=3b82f6'
+      ? DEFAULT_AVATAR_PATH
       : source.avatarPath;
 
     return {
       id: typeof rawId === 'object' && rawId !== null && 'toString' in rawId ? String((rawId as {toString(): string}).toString()) : String(rawId),
       email: source.email,
-      firstname: source.firstname,
-      lastname: source.lastname,
+      name: source.name,
       avatarPath,
       userType: source.userType,
     };
@@ -55,7 +55,7 @@ export class OfferController extends BaseController {
       city: source.city,
       previewImage: source.previewImage,
       isPremium: source.isPremium,
-      isFavorite: source.isFavorite,
+      isFavorite: Boolean(source.isFavorite),
       rating: source.rating,
       type: source.type,
       price: source.price,
@@ -75,7 +75,7 @@ export class OfferController extends BaseController {
       previewImage: source.previewImage,
       images: source.images,
       isPremium: source.isPremium,
-      isFavorite: source.isFavorite,
+      isFavorite: Boolean(source.isFavorite),
       rating: source.rating,
       type: source.type,
       rooms: source.rooms,
@@ -90,18 +90,25 @@ export class OfferController extends BaseController {
 
   public getOffers = asyncHandler(async (req: Request, res: Response) => {
     const { limit = DEFAULT_OFFER_COUNT } = req.query;
-    const offers = await this.offerService.find(Number(limit));
+    const parsedLimit = Number(limit);
+
+    if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
+      this.badRequest(res, 'limit must be a positive integer');
+      return;
+    }
+
+    const offers = await this.offerService.find(parsedLimit);
     const user = res.locals.user;
     const offersWithFavorite = await this.enrichWithFavorite(offers, user);
     this.ok(res, offersWithFavorite.map((offer) => this.serializeOfferSummary(offer)));
   });
 
   public getOfferById = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const offer = await this.offerService.findById(id as string);
+    const { offerId } = req.params;
+    const offer = await this.offerService.findById(offerId as string);
 
     if (!offer) {
-      this.notFound(res, `Offer with id ${id} not found`);
+      this.notFound(res, `Offer with id ${offerId} not found`);
       return;
     }
 
@@ -117,22 +124,36 @@ export class OfferController extends BaseController {
 
   public createOffer = asyncHandler(async (req: Request, res: Response) => {
     const user = res.locals.user;
+    const requestedIsFavorite = Boolean((req.body as CreateOfferDto).isFavorite);
     const createOfferDto: CreateOfferDto = {
-      ...req.body as CreateOfferDto,
+      ...(req.body as CreateOfferDto),
       authorId: user.id,
     };
     const newOffer = await this.offerService.create(createOfferDto);
-    this.created(res, this.serializeOfferDetails(newOffer));
+
+    if (requestedIsFavorite) {
+      await this.favoriteService.addToFavorites(user.id, newOffer.id);
+    }
+
+    const populatedOffer = await this.offerService.findById(newOffer.id);
+
+    if (!populatedOffer) {
+      this.notFound(res, `Offer with id ${newOffer.id} not found`);
+      return;
+    }
+
+    this.created(res, this.serializeOfferDetails({ ...populatedOffer.toObject(), isFavorite: requestedIsFavorite }));
   });
 
   public updateOffer = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const updateOfferDto: UpdateOfferDto = req.body;
+    const { offerId } = req.params;
+    const updateOfferDto = { ...(req.body as UpdateOfferDto) };
     const user = res.locals.user;
+    const requestedIsFavorite = updateOfferDto.isFavorite;
 
-    const offer = await this.offerService.findById(id as string);
+    const offer = await this.offerService.findById(offerId as string);
     if (!offer) {
-      this.notFound(res, `Offer with id ${id} not found`);
+      this.notFound(res, `Offer with id ${offerId} not found`);
       return;
     }
 
@@ -142,40 +163,47 @@ export class OfferController extends BaseController {
       return;
     }
 
-    const updatedOffer = await this.offerService.updateById(id as string, updateOfferDto);
+    const updatedOffer = await this.offerService.updateById(offerId as string, updateOfferDto);
 
     if (!updatedOffer) {
-      this.notFound(res, `Offer with id ${id} not found`);
+      this.notFound(res, `Offer with id ${offerId} not found`);
       return;
     }
 
-    this.ok(res, this.serializeOfferDetails(updatedOffer));
+    if (requestedIsFavorite === true) {
+      await this.favoriteService.addToFavorites(user.id, updatedOffer.id);
+    } else if (requestedIsFavorite === false) {
+      await this.favoriteService.removeFromFavorites(user.id, updatedOffer.id);
+    }
+
+    const isFavorite = await this.favoriteService.isFavorite(user.id, updatedOffer.id);
+    this.ok(res, this.serializeOfferDetails({ ...updatedOffer.toObject(), isFavorite }));
   });
 
   public deleteOffer = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { offerId } = req.params;
     const user = res.locals.user;
 
-    const offer = await this.offerService.findById(id as string);
+    const offer = await this.offerService.findById(offerId as string);
     if (!offer) {
-      this.notFound(res, `Offer with id ${id} not found`);
+      this.notFound(res, `Offer with id ${offerId} not found`);
       return;
     }
 
     const authorId = typeof offer.authorId === 'object' ? String(offer.authorId.id) : String(offer.authorId);
-    const canDelete = authorId === user.id || user.userType === 'pro';
+    const canDelete = authorId === user.id;
 
     if (!canDelete) {
-      this.forbidden(res, 'You can delete only your own offers unless you are a pro user');
+      this.forbidden(res, 'You can delete only your own offers');
       return;
     }
 
-    await this.favoriteService.removeByOfferId(id as string);
-    await this.commentService.deleteByOfferId(id as string);
-    const deletedOffer = await this.offerService.deleteById(id as string);
+    await this.favoriteService.removeByOfferId(offerId as string);
+    await this.commentService.deleteByOfferId(offerId as string);
+    const deletedOffer = await this.offerService.deleteById(offerId as string);
 
     if (!deletedOffer) {
-      this.notFound(res, `Offer with id ${id} not found`);
+      this.notFound(res, `Offer with id ${offerId} not found`);
       return;
     }
 
@@ -184,6 +212,12 @@ export class OfferController extends BaseController {
 
   public getPremiumOffers = asyncHandler(async (req: Request, res: Response) => {
     const { city } = req.params;
+
+    if (!OFFER_CITIES.includes(city as (typeof OFFER_CITIES)[number])) {
+      this.badRequest(res, `Unsupported city value: ${city}`);
+      return;
+    }
+
     const premiumOffers = await this.offerService.findPremiumByCity(city as string);
     const user = res.locals.user;
     const offersWithFavorite = await this.enrichWithFavorite(premiumOffers, user);

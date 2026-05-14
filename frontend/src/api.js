@@ -3,8 +3,12 @@
  * Handles communication with the REST API backend
  */
 
-const API_BASE_URL = 'http://localhost:4000/api';
-const API_ORIGIN = 'http://localhost:4000';
+const runtimeConfig = window.__SIX_CITIES_CONFIG__ || {};
+const defaultApiOrigin = window.location.port === '4000'
+  ? window.location.origin
+  : `${window.location.protocol}//${window.location.hostname}:4000`;
+const API_ORIGIN = runtimeConfig.apiOrigin || defaultApiOrigin;
+const API_BASE_URL = runtimeConfig.apiBaseUrl || `${API_ORIGIN}/api`;
 
 class SixCitiesAPI {
   constructor() {
@@ -26,7 +30,11 @@ class SixCitiesAPI {
       return url;
     }
 
-    return `${API_ORIGIN}${url}`;
+    if (url.startsWith('/')) {
+      return `${API_ORIGIN}${url}`;
+    }
+
+    return `${API_ORIGIN}/${url}`;
   }
 
   normalizeUser(user) {
@@ -200,10 +208,6 @@ class SixCitiesAPI {
     return offers.map((offer) => this.normalizeOffer(offer));
   }
 
-  async getUsers() {
-    return this.request('/users');
-  }
-
   // Comments endpoints
   async getComments(offerId) {
     const comments = await this.request(`/offers/${offerId}/comments`);
@@ -212,10 +216,6 @@ class SixCitiesAPI {
 
   async createComment(commentData) {
     return this.normalizeComment(await this.request('/comments', 'POST', commentData));
-  }
-
-  async getCommentById(commentId) {
-    return this.normalizeComment(await this.request(`/comments/${commentId}`));
   }
 
   // Favorites endpoints

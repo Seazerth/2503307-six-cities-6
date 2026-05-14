@@ -6,7 +6,7 @@ import { DocumentType, types } from '@typegoose/typegoose';
 import { OfferEntity } from './offer.entity.js';
 import { CreateOfferDto } from './dto/create-offer.dto.js';
 import { UpdateOfferDto } from './dto/update-offer.dto.js';
-import { DEFAULT_OFFER_COUNT } from './offer.constant.js';
+import { DEFAULT_OFFER_COUNT, PREMIUM_OFFER_COUNT } from './offer.constant.js';
 
 
 @injectable()
@@ -42,14 +42,14 @@ export class DefaultOfferService implements OfferService {
     return this.offerModel
       .find({ city, isPremium: true })
       .sort({ postDate: -1 })
-      .limit(3)
+      .limit(PREMIUM_OFFER_COUNT)
       .populate(['authorId'])
       .exec();
   }
 
   public async findFavorites(userId: string): Promise<DocumentType<OfferEntity>[]> {
     return this.offerModel
-      .find({ isFavorite: true, authorId: userId })
+      .find({ authorId: userId })
       .populate(['authorId'])
       .exec();
   }
@@ -97,17 +97,4 @@ export class DefaultOfferService implements OfferService {
       .exec();
   }
 
-  public async addToFavorites(offerId: string, userId: string): Promise<void> {
-    await this.offerModel
-      .findByIdAndUpdate(offerId, { isFavorite: true })
-      .exec();
-    this.logger.info(`Offer ${offerId} added to favorites by user ${userId}`);
-  }
-
-  public async removeFromFavorites(offerId: string, userId: string): Promise<void> {
-    await this.offerModel
-      .findByIdAndUpdate(offerId, { isFavorite: false })
-      .exec();
-    this.logger.info(`Offer ${offerId} removed from favorites by user ${userId}`);
-  }
 }

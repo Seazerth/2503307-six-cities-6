@@ -23,7 +23,7 @@ export class FavoriteController extends BaseController {
       city: offer.city,
       previewImage: offer.previewImage,
       isPremium: offer.isPremium,
-      isFavorite: offer.isFavorite,
+      isFavorite: true,
       rating: offer.rating,
       type: offer.type,
       price: offer.price,
